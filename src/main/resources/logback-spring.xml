@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Application properties -->
+    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="rideshare-api"/>
+    <springProperty scope="context" name="serverPort" source="server.port" defaultValue="8080"/>
+    <springProperty scope="context" name="logPath" source="logging.file.path" defaultValue="logs"/>
+
+    <!-- Log file location -->
+    <property name="LOG_FILE" value="${logPath}/${appName}"/>
+
+    <!-- ============================================ -->
+    <!-- CONSOLE APPENDER - Human Readable (DEV)     -->
+    <!-- ============================================ -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ============================================ -->
+    <!-- JSON CONSOLE APPENDER (PROD)                -->
+    <!-- ============================================ -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>clientIp</includeMdcKeyName>
+            <includeMdcKeyName>requestUri</includeMdcKeyName>
+            <includeMdcKeyName>requestMethod</includeMdcKeyName>
+            <customFields>{"application":"${appName}","port":"${serverPort}"}</customFields>
+        </encoder>
+    </appender>
+
+    <!-- ============================================ -->
+    <!-- JSON FILE APPENDER (Rolling)                -->
+    <!-- ============================================ -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}.json</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.json.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <timeZone>UTC</timeZone>
+                </timestamp>
+                <version/>
+                <logLevel/>
+                <message/>
+                <loggerName/>
+                <threadName/>
+                <context/>
+                <pattern>
+                    <pattern>
+                        {
+                            "application": "${appName}",
+                            "port": "${serverPort}",
+                            "pid": "${PID:-}",
+                            "class": "%logger{40}",
+                            "method": "%method",
+                            "line": "%line"
+                        }
+                    </pattern>
+                </pattern>
+                <mdc/>
+                <stackTrace>
+                    <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                        <maxDepthPerThrowable>30</maxDepthPerThrowable>
+                        <maxLength>2048</maxLength>
+                        <shortenedClassNameLength>20</shortenedClassNameLength>
+                        <rootCauseFirst>true</rootCauseFirst>
+                    </throwableConverter>
+                </stackTrace>
+            </providers>
+        </encoder>
+    </appender>
+
+    <!-- ============================================ -->
+    <!-- ASYNC APPENDER (for better performance)     -->
+    <!-- ============================================ -->
+    <appender name="ASYNC_JSON_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>true</includeCallerData>
+        <appender-ref ref="JSON_FILE"/>
+    </appender>
+
+    <!-- ============================================ -->
+    <!-- DEVELOPMENT PROFILE                         -->
+    <!-- ============================================ -->
+    <springProfile name="dev">
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        
+        <!-- Reduce noise from frameworks in dev -->
+        <logger name="org.springframework.security" level="DEBUG"/>
+        <logger name="org.example.rideshare" level="DEBUG"/>
+        <logger name="org.mongodb.driver" level="INFO"/>
+    </springProfile>
+
+    <!-- ============================================ -->
+    <!-- PRODUCTION PROFILE - JSON Logs              -->
+    <!-- ============================================ -->
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="ASYNC_JSON_FILE"/>
+        </root>
+        
+        <!-- Minimal logging for frameworks in prod -->
+        <logger name="org.springframework.security" level="WARN"/>
+        <logger name="org.example.rideshare" level="INFO"/>
+        <logger name="org.mongodb.driver" level="WARN"/>
+    </springProfile>
+
+    <!-- ============================================ -->
+    <!-- DEFAULT (no profile) - Fallback             -->
+    <!-- ============================================ -->
+    <springProfile name="default">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+</configuration>
