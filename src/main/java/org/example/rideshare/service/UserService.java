@@ -3,6 +3,7 @@ package org.example.rideshare.service;
 import org.example.rideshare.exception.NotFoundException;
 import org.example.rideshare.model.User;
 import org.example.rideshare.repository.UserRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ public class UserService {
         this.userRepository = userRepository;
     }
 
+    @Cacheable(value = "users", key = "#username")
     public User getUserByUsername(String username) {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new NotFoundException("User not found: " + username));

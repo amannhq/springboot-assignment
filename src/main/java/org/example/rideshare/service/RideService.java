@@ -6,6 +6,8 @@ import org.example.rideshare.exception.BadRequestException;
 import org.example.rideshare.exception.NotFoundException;
 import org.example.rideshare.model.Ride;
 import org.example.rideshare.repository.RideRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -23,7 +25,8 @@ public class RideService {
         this.userService = userService;
     }
 
-    // Create a new ride (Passenger only)
+    // Create a new ride (Passenger only) - evicts pending rides cache
+    @CacheEvict(value = "pendingRides", allEntries = true)
     public RideResponse createRide(CreateRideRequest request) {
         String userId = userService.getCurrentUserId();
 
@@ -47,14 +50,16 @@ public class RideService {
                 .collect(Collectors.toList());
     }
 
-    // Get all pending ride requests (Driver)
+    // Get all pending ride requests (Driver) - Cached for 30 seconds
+    @Cacheable(value = "pendingRides")
     public List<RideResponse> getPendingRides() {
         return rideRepository.findByStatus(Ride.STATUS_REQUESTED).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
-    // Accept a ride (Driver only)
+    // Accept a ride (Driver only) - evicts pending rides cache
+    @CacheEvict(value = "pendingRides", allEntries = true)
     public RideResponse acceptRide(String rideId) {
         String driverId = userService.getCurrentUserId();
 
